@@ -195,8 +195,14 @@ class MainWindow:
                                       command=self.test_speed)
         self.speed_button.pack(pady=5)
         
-        self.speed_result = ttk.Label(speed_frame, text="")
-        self.speed_result.pack(pady=5)
+        # Progress bar for speed test
+        self.speed_progress = ttk.Progressbar(speed_frame, mode='indeterminate')
+        self.speed_progress.pack(fill="x", pady=5)
+        
+        # Speed test result display
+        self.speed_result = ttk.Label(speed_frame, text="Click 'Test Connection Speed' to start", 
+                                     wraplength=400, justify="left")
+        self.speed_result.pack(pady=5, fill="x")
         
         return tab
         
@@ -386,7 +392,8 @@ class MainWindow:
     def test_speed(self):
         """Test connection speed."""
         self.speed_button.config(state="disabled")
-        self.speed_result.config(text="Testing speed...")
+        self.speed_progress.start()
+        self.speed_result.config(text="Initializing speed test...")
         
         # Run speed test in background
         threading.Thread(target=self._run_speed_test, daemon=True).start()
@@ -394,18 +401,45 @@ class MainWindow:
     def _run_speed_test(self):
         """Run speed test in background thread."""
         try:
-            # This is a placeholder - implement actual speed test
-            time.sleep(3)  # Simulate speed test
-            result = "Speed test completed (placeholder)"
+            # Progress callback function
+            def progress_callback(message):
+                self.root.after(0, lambda: self.speed_result.config(text=message))
+            
+            # Run the speed test
+            result = self.vpn_manager.run_speed_test(progress_callback)
+            
+            if result.get('success'):
+                # Format the results nicely
+                download = result['download_mbps']
+                upload = result['upload_mbps']
+                ping = result['ping_ms']
+                server = result['server']
+                country = result['server_country']
+                
+                result_text = f"""Speed Test Results:
+Download: {download} Mbps ({result['download_rating']})
+Upload: {upload} Mbps ({result['upload_rating']})
+Ping: {ping} ms ({result['ping_rating']})
+Server: {server} ({country})
+Tested: {result['timestamp']}"""
+                
+                # Log the results
+                self.log_message(f"Speed test completed - Download: {download} Mbps, Upload: {upload} Mbps, Ping: {ping} ms")
+            else:
+                result_text = f"Speed test failed: {result.get('error', 'Unknown error')}"
+                self.log_message(f"Speed test failed: {result.get('error', 'Unknown error')}")
             
             # Update UI in main thread
-            self.root.after(0, lambda: self.speed_result.config(text=result))
+            self.root.after(0, lambda: self.speed_result.config(text=result_text))
+            self.root.after(0, lambda: self.speed_progress.stop())
             self.root.after(0, lambda: self.speed_button.config(state="normal"))
             
         except Exception as e:
             error_msg = f"Speed test failed: {e}"
             self.root.after(0, lambda: self.speed_result.config(text=error_msg))
+            self.root.after(0, lambda: self.speed_progress.stop())
             self.root.after(0, lambda: self.speed_button.config(state="normal"))
+            self.log_message(f"Speed test error: {e}")
             
     def apply_settings(self):
         """Apply VPN settings."""

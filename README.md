@@ -45,6 +45,9 @@ The locations data is stored in a human-readable JSON format for easy inspection
 - **Python**: 3.8 or higher
 - **NordVPN CLI**: Must be installed and configured
 - **Dependencies**: See requirements.txt
+  - `speedtest-cli`: For connection speed testing functionality
+  - `requests`: For HTTP requests
+  - `psutil`: For system monitoring
 
 ## Installation
 
@@ -108,7 +111,13 @@ python main.py
 
 ### Advanced Features
 
-- **Speed Testing**: Click "Test Speed" in the Status tab to check connection speed
+- **Speed Testing**: 
+  - Click "Test Connection Speed" in the Status tab to check your current connection speed
+  - Tests download speed, upload speed, and ping latency
+  - Provides speed ratings (Excellent, Very Good, Good, Fair, Poor, Very Poor)
+  - Shows test server information and distance
+  - Progress bar shows real-time test status
+  - Results are logged for troubleshooting
 - **Settings Configuration**: 
   - Choose between NordLynx and OpenVPN technologies
   - Set protocol (UDP/TCP)
@@ -157,6 +166,13 @@ PyNord automatically detects NordVPN CLI settings and provides a GUI to modify t
    - Tkinter is included with Python by default
    - Ensure your system has proper display support
    - Check if your system supports the required Tkinter features
+
+5. **Speed test failures**:
+   - Ensure `speedtest-cli` is installed: `pip install speedtest-cli`
+   - Check internet connection is available
+   - Verify no firewall is blocking speed test servers
+   - Try running speed test manually: `speedtest-cli --simple`
+   - Some corporate networks may block speed test servers
 
 ### Logs
 

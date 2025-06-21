@@ -237,22 +237,114 @@ class NordVPNManager:
         return result['success']
     
     def get_connection_speed(self) -> Dict[str, Any]:
-        """Get current connection speed (if connected)."""
-        status = self.get_status()
-        if not status.get('connected'):
-            return {'error': 'Not connected'}
-        
+        """Get current connection speed using speedtest-cli."""
         try:
-            # Use speedtest-cli if available, otherwise estimate
-            result = subprocess.run(
-                ['speedtest-cli', '--json', '--simple'],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-            if result.returncode == 0:
-                return json.loads(result.stdout)
-            else:
-                return {'error': 'Speed test failed'}
+            import speedtest
+            st = speedtest.Speedtest()
+            
+            # Get best server
+            st.get_best_server()
+            
+            # Test download speed
+            download_speed = st.download() / 1_000_000  # Convert to Mbps
+            
+            # Test upload speed
+            upload_speed = st.upload() / 1_000_000  # Convert to Mbps
+            
+            # Get ping
+            ping = st.results.ping
+            
+            return {
+                'success': True,
+                'download_mbps': round(download_speed, 2),
+                'upload_mbps': round(upload_speed, 2),
+                'ping_ms': round(ping, 1),
+                'server': st.results.server['name'],
+                'server_country': st.results.server['country'],
+                'server_distance': round(st.results.server.get('distance', 0), 1)
+            }
+        except ImportError:
+            return {'error': 'speedtest-cli library not installed'}
         except Exception as e:
-            return {'error': f'Speed test error: {e}'} 
+            return {'error': f'Speed test failed: {str(e)}'}
+    
+    def run_speed_test(self, progress_callback=None) -> Dict[str, Any]:
+        """Run a comprehensive speed test with progress updates."""
+        try:
+            import speedtest
+            st = speedtest.Speedtest()
+            
+            if progress_callback:
+                progress_callback("Finding best server...")
+            
+            # Get best server
+            st.get_best_server()
+            
+            if progress_callback:
+                progress_callback("Testing download speed...")
+            
+            # Test download speed
+            download_speed = st.download() / 1_000_000  # Convert to Mbps
+            
+            if progress_callback:
+                progress_callback("Testing upload speed...")
+            
+            # Test upload speed
+            upload_speed = st.upload() / 1_000_000  # Convert to Mbps
+            
+            if progress_callback:
+                progress_callback("Calculating results...")
+            
+            # Get ping
+            ping = st.results.ping
+            
+            # Calculate speed ratings
+            download_rating = self._get_speed_rating(download_speed)
+            upload_rating = self._get_speed_rating(upload_speed)
+            ping_rating = self._get_ping_rating(ping)
+            
+            return {
+                'success': True,
+                'download_mbps': round(download_speed, 2),
+                'upload_mbps': round(upload_speed, 2),
+                'ping_ms': round(ping, 1),
+                'download_rating': download_rating,
+                'upload_rating': upload_rating,
+                'ping_rating': ping_rating,
+                'server': st.results.server['name'],
+                'server_country': st.results.server['country'],
+                'server_distance': round(st.results.server.get('distance', 0), 1),
+                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        except ImportError:
+            return {'error': 'speedtest-cli library not installed'}
+        except Exception as e:
+            return {'error': f'Speed test failed: {str(e)}'}
+    
+    def _get_speed_rating(self, speed_mbps: float) -> str:
+        """Get a human-readable rating for speed."""
+        if speed_mbps >= 100:
+            return "Excellent"
+        elif speed_mbps >= 50:
+            return "Very Good"
+        elif speed_mbps >= 25:
+            return "Good"
+        elif speed_mbps >= 10:
+            return "Fair"
+        elif speed_mbps >= 5:
+            return "Poor"
+        else:
+            return "Very Poor"
+    
+    def _get_ping_rating(self, ping_ms: float) -> str:
+        """Get a human-readable rating for ping."""
+        if ping_ms < 20:
+            return "Excellent"
+        elif ping_ms < 50:
+            return "Very Good"
+        elif ping_ms < 100:
+            return "Good"
+        elif ping_ms < 200:
+            return "Fair"
+        else:
+            return "Poor" 
